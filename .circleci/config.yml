@@ -9,7 +9,7 @@ workflows:
   version: 2
   main:
     jobs:
-      - lint
+      # - lint
       - build
       # - dev-release:
       #     requires:
