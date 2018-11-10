@@ -3,3 +3,6 @@ docker-validate:
 
 docker-publish-dev:
 	circleci orb publish src/docker/orb.yml joshhsoj1902/docker@dev:first
+
+docker-publish:
+	circleci orb publish increment src/docker/orb.yml joshhsoj1902/docker patch
