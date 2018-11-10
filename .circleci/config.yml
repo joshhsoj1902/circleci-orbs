@@ -1,0 +1,69 @@
+version: 2.1
+
+executors:
+  cli:
+    docker:
+      - image: circleci/circleci-cli:0.1.2709
+
+workflows:
+  version: 2
+  main:
+    jobs:
+      - lint
+      - build
+      # - dev-release:
+      #     requires:
+      #       - build
+      #       - lint
+      # - trigger-downstream:
+      #     requires:
+      #       - dev-release
+      #     filters:
+      #       branches:
+      #         only: master
+
+jobs:
+  lint:
+    docker:
+      - image: singapore/lint-condo
+    steps:
+      - checkout
+      - run:
+          'yamllint .'
+
+  build:
+    executor: cli
+    steps:
+      - checkout
+      # - run: "echo -e \"token: placeholder\nverbose: false > ~/.circleci/cli.yml\""
+      - run: "make docker-validate"
+
+  dev-release:
+    executor: cli
+    steps:
+      - checkout
+      - run: "sh scripts/dev-release.sh"
+
+  trigger-downstream:
+    machine: true
+    steps:
+      - run: |
+          # We probably want to have a mapping of orbs that have changed to
+          # test projects triggered instead of just triggering everything all
+          # the time.
+          BASE="https://circleci.com/api/v1.1/project/github"
+          PROJECT="circleci/aws-code-deploy-orb-test/build"
+          curl -X POST $BASE/$PROJECT?circle-token=$CIRCLECI_API_TOKEN
+  release:
+    executor: cli
+    steps:
+      - checkout
+      ## walk the tree in orb-releases.yml (the path to which could be fed as a parameter to the command)
+          ## For each, attempt to build the orb with the CLI, then if that's successful, register it.
+          ## would look something like: `circleci orb build $PATH-TO-SRC $ORB-NAMESPACE $ORB-NAME $PATH-TO-BUILT-ORB; circleci orb register $PATH-TO-BUILT-ORB $REVISION`
+          ## Perhaps better yet, the "built" orb has its revision baked in? So then we can look directly for a checksum in our data to match the built orb.
+          ## QUESTION: when registering a given "built" orb we can look at the checksum and see if it's different, then increment for them.
+            ## If we did that, how would we choose when it's a major, minor, or patch? If we do need to pass it manually, we would want to update the manifest
+            ## but, we could allow a request to register be idempotent, so you can send us the same again, and if the revision and checksum are the same as an existing orb it's a noop.
+            ## If you send an existing revision with a different checksum that's an error, with a message that revisions are immutable.
+            ## If you send a revision smaller than what's live, that an error
