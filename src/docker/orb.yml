@@ -87,7 +87,37 @@ commands:
           root: << parameters.workspace >>
           paths: 
             - << parameters.imageFile >>
-            
+  
+  compose-exec-retry:
+    description: |
+      Runs a command inside an already running docker-compose container until the command returns truthy
+      * This is great for testing that a service comes up healthy
+    parameters:
+      composeFilePath:
+        description: Full path to compose file.
+        type: string
+        default: ./docker-compose.yml
+      service:
+        description: Service inside compose file to exec into.
+        type: string
+        default: test
+      command:
+        description: Command to run.
+        type: string
+        default: date
+      tries:
+        description: How many times to retry.
+        type: integer
+        default: 60
+      sleep:
+        description: How long to sleep between retrys.
+        type: integer
+        default: 5
+    steps:
+      - run:
+          command: | 
+            retry -v -s << parameters.sleep >> -t << parameters.tries >> 'docker-compose -f << parameters.composeFilePath >> exec << parameters.service >> "<< parameters.command >>"'
+
   deploy:
     description: Deploy docker image to a registry.
     parameters:
@@ -157,6 +187,91 @@ jobs:
           name: Run after_build lifecycle hook steps.
           condition: << parameters.after_build >>
           steps: << parameters.after_build >>
+
+  test:
+    description: Runs a test that requires docker
+    executor: docker
+    parameters:
+      workspace:
+        description: Name of workspace to save to.
+        type: string
+        default: /tmp/workspace
+      imageFile:
+        description: Name of file to save image as.
+        type: string
+        default: images.tar
+      command:
+        description: Command to run.
+        type: string
+        default: make test
+    steps:
+      - setup_remote_docker
+      - attach_workspace:
+          at: << parameters.workspace >>
+      - run: docker load -i << parameters.workspace >>/<< parameters.imageFile >>
+      - run: 
+          command: |
+            cd << parameters.workspace >>
+            ls -ltr
+            cat Makefile
+            << parameters.command >>
+
+  compose-test-health:
+    description: Check, Build, and Deploy a Docker Image.
+    executor: docker
+    parameters:
+      image:
+        description: Name of image to create. Defaults to a combination of $DOCKER_LOGIN/$CIRCLE_PROJECT_REPONAME.
+        type: string
+        default: $DOCKER_LOGIN/$CIRCLE_PROJECT_REPONAME
+      tag:
+        description: Value for tag to use. Defaults to $CIRCLE_SHA1.
+        type: string
+        default: $CIRCLE_SHA1
+      workspace:
+        description: Name of workspace to save to.
+        type: string
+        default: /tmp/workspace
+      imageFile:
+        description: Name of file to save image as.
+        type: string
+        default: images.tar
+      composeFile:
+        description: Name of compose file to use.
+        type: string
+        default: ./docker-compose.yml
+      service:
+        description: Name of service to run/exec.
+        type: string
+        default: ./docker-compose.yml
+    steps:
+      - setup_remote_docker
+      - attach_workspace:
+          at: << parameters.workspace >>
+      - run: docker load -i << parameters.workspace >>/<< parameters.imageFile >>
+      - run: 
+          background: true
+          command: | 
+            docker image ls
+
+            docker-compose -f << parameters.workspace >>/<< parameters.composeFile >> up
+      - compose-exec-retry:
+          composeFilePath: << parameters.workspace >>/<< parameters.composeFile >>
+          service: << parameters.service >>
+          command: ./docker-ready.sh
+          sleep: 5
+          tries: 60
+      - compose-exec-retry:
+          composeFilePath: << parameters.workspace >>/<< parameters.composeFile >>
+          service: << parameters.service >>
+          command: ./docker-health.sh
+          sleep: 120
+          tries: 3
+      - run:
+          name: Save logs -f << parameters.workspace >>/<< parameters.composeFile >>
+          when: always
+          command: docker-compose -f << parameters.workspace >>/<< parameters.composeFile >> logs << parameters.service >>
+
   publish:
     description: Check, Build, and Deploy a Docker Image.
     executor: docker
@@ -177,40 +292,8 @@ jobs:
         description: Name of registry to use. Defaults to docker.io.
         type: string
         default: docker.io
-      after_checkout:
-        description: Optional steps to run after checking out the code.
-        type: steps
-        default: []
-      before_build:
-        description: Optional steps to run before building the docker image.
-        type: steps
-        default: []
-      after_build:
-        description: Optional steps to run after building the docker image.
-        type: steps
-        default: []
     steps:
-      - checkout
-      - when:
-          name: Run after_checkout lifecycle hook steps.
-          condition: << parameters.after_checkout >>
-          steps: << parameters.after_checkout >>
       - setup_remote_docker
-      - check:
-          registry: << parameters.registry >>
-      - when:
-          name: Run before_build lifecycle hook steps.
-          condition: << parameters.before_build >>
-          steps: << parameters.before_build >>
-      - build:
-          dockerfile: << parameters.dockerfile >>
-          image: << parameters.image >>
-          tag: << parameters.tag >>
-          registry: << parameters.registry >>
-      - when:
-          name: Run after_build lifecycle hook steps.
-          condition: << parameters.after_build >>
-          steps: << parameters.after_build >>
       - deploy:
           registry: << parameters.registry >>
           image: << parameters.image >>
