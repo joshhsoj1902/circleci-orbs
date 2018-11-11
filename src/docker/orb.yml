@@ -25,6 +25,18 @@ executors:
       - image: joshhsoj1902/circleci-build-image:1.0.7
 
 commands:
+  configure-gcloud:
+    description: Configure and sign into GCP
+    parameters:
+    steps:
+      - run:
+          command: | 
+            gcloud components update 
+            echo $GCLOUD_SERVICE_KEY > ${HOME}/gcloud-service-key.json
+            gcloud auth activate-service-account --key-file=${HOME}/gcloud-service-key.json
+            gcloud config set project $GCLOUD_PROJECT
+            gcloud auth configure-docker
+
   check:
     description: |
       Sanity check to make sure you can build a docker image.
@@ -82,7 +94,7 @@ commands:
           name: Build Docker Image
           command: docker build -f << parameters.dockerfile >> -t << parameters.registry >>/<< parameters.image >>:<< parameters.tag >> .
       - run: mkdir -p << parameters.workspace >>
-      - run: docker save joshhsoj1902/linuxgsm-docker -o << parameters.workspace >>/<< parameters.imageFile >>
+      - run: docker save << parameters.registry >>/<< parameters.image >> -o << parameters.workspace >>/<< parameters.imageFile >>
       - persist_to_workspace:
           root: << parameters.workspace >>
           paths: 
@@ -129,10 +141,14 @@ commands:
         description: Name of image to create. Defaults to a combination of $DOCKER_LOGIN/$CIRCLE_PROJECT_REPONAME.
         type: string
         default: $DOCKER_LOGIN/$CIRCLE_PROJECT_REPONAME
+      tag:
+        description: tag of image to push.
+        type: string
+        default: latest
     steps:
       - run:
           name: Push Docker Image
-          command: docker push << parameters.registry >>/<< parameters.image >>
+          command: docker push << parameters.registry >>/<< parameters.image >>:<< parameters.tag >>
 
 jobs:
   build:
@@ -204,17 +220,39 @@ jobs:
         description: Command to run.
         type: string
         default: make test
+      before_load:
+        description: Optional steps to run before loading the docker image.
+        type: steps
+        default: []
+      before_test:
+        description: Optional steps to run before running the tests.
+        type: steps
+        default: []
+      after_test:
+        description: Optional steps to run after running the tests.
+        type: steps
+        default: []
     steps:
       - setup_remote_docker
       - attach_workspace:
           at: << parameters.workspace >>
+      - when:
+          name: Run before_load lifecycle hook steps.
+          condition: << parameters.before_load >>
+          steps: << parameters.before_load >>
       - run: docker load -i << parameters.workspace >>/<< parameters.imageFile >>
+      - when:
+          name: Run before_test lifecycle hook steps.
+          condition: << parameters.before_test >>
+          steps: << parameters.before_test >>
       - run: 
           command: |
             cd << parameters.workspace >>
-            ls -ltr
-            cat Makefile
             << parameters.command >>
+      - when:
+          name: Run after_test lifecycle hook steps.
+          condition: << parameters.after_test >>
+          steps: << parameters.after_test >>
 
   compose-test-health:
     description: Check, Build, and Deploy a Docker Image.
@@ -244,10 +282,26 @@ jobs:
         description: Name of service to run/exec.
         type: string
         default: ./docker-compose.yml
+      before_load:
+        description: Optional steps to run before loading the docker image.
+        type: steps
+        default: []
+      before_test:
+        description: Optional steps to run before running the tests.
+        type: steps
+        default: []
+      after_test:
+        description: Optional steps to run after running the tests.
+        type: steps
+        default: []
     steps:
       - setup_remote_docker
       - attach_workspace:
           at: << parameters.workspace >>
+      - when:
+          name: Run before_load lifecycle hook steps.
+          condition: << parameters.before_load >>
+          steps: << parameters.before_load >>
       - run: docker load -i << parameters.workspace >>/<< parameters.imageFile >>
       - run: 
           background: true
@@ -255,6 +309,10 @@ jobs:
             docker image ls
 
             docker-compose -f << parameters.workspace >>/<< parameters.composeFile >> up
+      - when:
+          name: Run before_test lifecycle hook steps.
+          condition: << parameters.before_test >>
+          steps: << parameters.before_test >>
       - compose-exec-retry:
           composeFilePath: << parameters.workspace >>/<< parameters.composeFile >>
           service: << parameters.service >>
@@ -267,6 +325,10 @@ jobs:
           command: ./docker-health.sh
           sleep: 120
           tries: 3
+      - when:
+          name: Run after_test lifecycle hook steps.
+          condition: << parameters.after_test >>
+          steps: << parameters.after_test >>
       - run:
           name: Save logs -f << parameters.workspace >>/<< parameters.composeFile >>
           when: always
@@ -292,8 +354,17 @@ jobs:
         description: Name of registry to use. Defaults to docker.io.
         type: string
         default: docker.io
+      before_deploy:
+        description: Optional steps to run before deploying the docker image.
+        type: steps
+        default: []
     steps:
       - setup_remote_docker
+      - when:
+          name: Run before_deploy lifecycle hook steps.
+          condition: << parameters.before_deploy >>
+          steps: << parameters.before_deploy >>
       - deploy:
           registry: << parameters.registry >>
           image: << parameters.image >>
+          tag: << parameters.tag >>
