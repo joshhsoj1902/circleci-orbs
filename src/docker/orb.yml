@@ -4,12 +4,12 @@ description: |
   Build and publish Docker images to container registries
 examples:
   custom_name_and_tag:
-    description: Build and Deploy docker image with a custom name and tag.
+    description: I'll add examples at some point. Till then, look at https://github.com/joshhsoj1902/linuxgsm-docker/blob/master/.circleci/config.yml or https://github.com/joshhsoj1902/docker-gogpagent/blob/master/.circleci/config.yml..
     usage:
       version: 2.1
 
       orbs:
-        docker-publish: circleci/docker-publish@1.0.0
+        docker-publish: joshhsoj1902/docker@0.1.0
 
       workflows:
         build_and_publish_docker_image:
@@ -130,6 +130,31 @@ commands:
           command: | 
             retry -v -s << parameters.sleep >> -t << parameters.tries >> 'docker-compose -f << parameters.composeFilePath >> exec << parameters.service >> "<< parameters.command >>"'
 
+  test-container-healthiness:
+    description: |
+      Tests that a particular docker container is healthy
+    parameters:
+      composeFilePath:
+        description: Full path to compose file.
+        type: string
+        default: ./docker-compose.yml
+      container:
+        description: Container to test. (This must be pretty unique, if the container matches any other running docker container this test fails)
+        type: string
+      tries:
+        description: How many times to retry.
+        type: integer
+        default: 60
+      sleep:
+        description: How long to sleep between retrys.
+        type: integer
+        default: 5
+    steps:
+      - run:
+          command: |
+            retry -v -s << parameters.sleep >> -t << parameters.tries >> -- 'containerId=$(docker ps -f name=_<< parameters.container >>_ --format "{{.ID}}"); if [ $(docker inspect --format "{{ .State.Health.Status }}" $containerId) == "healthy" ]; then echo "Service Healthy"; true; else echo "Service not healthy $containerId"; false; fi'
+            docker ps
+
   deploy:
     description: Deploy docker image to a registry.
     parameters:
@@ -249,6 +274,73 @@ jobs:
           command: |
             cd << parameters.workspace >>
             << parameters.command >>
+      - when:
+          name: Run after_test lifecycle hook steps.
+          condition: << parameters.after_test >>
+          steps: << parameters.after_test >>
+
+  container-health:
+    description: Test all containers are healthy.
+    executor: docker
+    parameters:
+      workspace:
+        description: Name of workspace to save to.
+        type: string
+        default: /tmp/workspace
+      imageFile:
+        description: Name of file to save image as.
+        type: string
+        default: images.tar
+      composeFile:
+        description: Name of compose file to use.
+        type: string
+        default: ./docker-compose.yml
+      service:
+        description: Name of the service to test
+        type: string
+      command:
+        description: Command to run to start containers.
+        type: string
+        default: docker-compose -f /tmp/workspace/docker-compose.yml up
+      commandBackground:
+        description: Should start command be ran in background?
+        type: boolean
+        default: true
+      before_load:
+        description: Optional steps to run before loading the docker image.
+        type: steps
+        default: []
+      before_test:
+        description: Optional steps to run before running the tests.
+        type: steps
+        default: []
+      after_test:
+        description: Optional steps to run after running the tests.
+        type: steps
+        default: []
+    steps:
+      - setup_remote_docker
+      - attach_workspace:
+          at: << parameters.workspace >>
+      - when:
+          name: Run before_load lifecycle hook steps.
+          condition: << parameters.before_load >>
+          steps: << parameters.before_load >>
+      - run: docker load -i << parameters.workspace >>/<< parameters.imageFile >>
+      - run: 
+          background: << parameters.commandBackground>>
+          command: | 
+            cd << parameters.workspace >>
+            << parameters.command >>
+      - when:
+          name: Run before_test lifecycle hook steps.
+          condition: << parameters.before_test >>
+          steps: << parameters.before_test >>  
+      - test-container-healthiness:
+          composeFilePath: << parameters.workspace >>/<< parameters.composeFile >>
+          container: << parameters.service >>
+          sleep: 5
+          tries: 60
       - when:
           name: Run after_test lifecycle hook steps.
           condition: << parameters.after_test >>
