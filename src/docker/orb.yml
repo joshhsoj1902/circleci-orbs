@@ -427,13 +427,17 @@ jobs:
           command: docker-compose -f << parameters.workspace >>/<< parameters.composeFile >> logs << parameters.service >>
 
   publish:
-    description: Check, Build, and Deploy a Docker Image.
+    description: Publish a Docker Image.
     executor: docker
     parameters:
-      dockerfile:
-        description: Name of dockerfile to use. Defaults to Dockerfile in working directory.
+      workspace:
+        description: Name of workspace to save to.
         type: string
-        default: Dockerfile
+        default: /tmp/workspace
+      imageFile:
+        description: Name of file to save image as.
+        type: string
+        default: images.tar
       image:
         description: Name of image to create. Defaults to a combination of $DOCKER_LOGIN/$CIRCLE_PROJECT_REPONAME.
         type: string
@@ -446,12 +450,23 @@ jobs:
         description: Name of registry to use. Defaults to docker.io.
         type: string
         default: docker.io
+      before_load:
+        description: Optional steps to run before loading the docker image.
+        type: steps
+        default: []
       before_deploy:
         description: Optional steps to run before deploying the docker image.
         type: steps
         default: []
     steps:
       - setup_remote_docker
+      - attach_workspace:
+          at: << parameters.workspace >>
+      - when:
+          name: Run before_load lifecycle hook steps.
+          condition: << parameters.before_load >>
+          steps: << parameters.before_load >>
+      - run: docker load -i << parameters.workspace >>/<< parameters.imageFile >>
       - when:
           name: Run before_deploy lifecycle hook steps.
           condition: << parameters.before_deploy >>
