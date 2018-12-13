@@ -545,7 +545,7 @@ jobs:
           condition: << parameters.before_deploy >>
           steps: << parameters.before_deploy >>
       - run: |
-           if [ -f << parameters.workspace >>/env-vars >> ]; then
+           if [[ -f << parameters.workspace >>/env-vars >> ]]; then
              cat << parameters.workspace >>/env-vars >> $BASH_ENV
            fi
       - deploy-as:
