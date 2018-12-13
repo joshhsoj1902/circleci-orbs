@@ -480,21 +480,13 @@ jobs:
         type: string
         default: $CIRCLE_SHA1
       tag_as3:
-        description: Optional third value to tag and push image as.
+        description: Third value to tag and push image as.
         type: string
-        default: $TAG_AS3
-      tag_as3_bool:
-        description: Enable Optional third value to tag and push image as.
-        type: boolean
-        default: false
+        default: $CIRCLE_BRANCH
       tag_as4:
-        description: Optional third value to tag and push image as.
+        description: 4th value to tag and push image as.
         type: string
-        default: $TAG_AS4
-      tag_as4_bool:
-        description: Enable Optional forth value to tag and push image as.
-        type: boolean
-        default: false
+        default: $CIRCLE_BRANCH-CIRCLE_BUILD_NUM
       tag_as5:
         description: Optional fifth value to tag and push image as.
         type: string
@@ -565,24 +557,16 @@ jobs:
           image: << parameters.image >>
           tag: << parameters.tag >>
           tag_as: << parameters.tag_as2 >>
-      - when:
-          name: Tag 3.
-          condition: << parameters.tag_as3_bool >>
-          steps: 
-            - deploy-as:
-                registry: << parameters.registry >>
-                image: << parameters.image >>
-                tag: << parameters.tag >>
-                tag_as: << parameters.tag_as3 >>
-      - when:
-          name: Tag 4.
-          condition: << parameters.tag_as4_bool >>
-          steps: 
-            - deploy-as:
-                registry: << parameters.registry >>
-                image: << parameters.image >>
-                tag: << parameters.tag >>
-                tag_as: << parameters.tag_as4 >>
+      - deploy-as:
+          registry: << parameters.registry >>
+          image: << parameters.image >>
+          tag: << parameters.tag >>
+          tag_as: << parameters.tag_as3 >>
+      - deploy-as:
+          registry: << parameters.registry >>
+          image: << parameters.image >>
+          tag: << parameters.tag >>
+          tag_as: << parameters.tag_as4 >>
       - when:
           name: Tag 5.
           condition: << parameters.tag_as5_bool >>
