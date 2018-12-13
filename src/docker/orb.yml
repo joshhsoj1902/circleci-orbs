@@ -201,7 +201,7 @@ commands:
       - run:
           name: Push Docker Image
           command: |
-            if [[ -z $tag_suffix ]]; then
+            if [[ "<< parameters.tag_suffix >>" == "" ]]; then
               docker tag << parameters.registry >>/<< parameters.image >>:<< parameters.tag >> << parameters.registry >>/<< parameters.image >>:<< parameters.tag_as >>
               docker push << parameters.registry >>/<< parameters.image >>:<< parameters.tag_as >>
             else
@@ -499,7 +499,7 @@ jobs:
       tag_as4:
         description: 4th value to tag and push image as.
         type: string
-        default: $CIRCLE_BRANCH-CIRCLE_BUILD_NUM
+        default: $CIRCLE_BRANCH-$CIRCLE_BUILD_NUM
       tag_as5:
         description: Optional fifth value to tag and push image as.
         type: string
@@ -557,9 +557,10 @@ jobs:
           name: Run before_deploy lifecycle hook steps.
           condition: << parameters.before_deploy >>
           steps: << parameters.before_deploy >>
-      - run: env
-      - run: cat << parameters.workspace >>/env-vars >> $BASH_ENV
-      - run: env
+      - run: |
+           if [[ -f << parameters.workspace >>/env-vars ]]; then
+             cat << parameters.workspace >>/env-vars >> $BASH_ENV
+           fi
       - deploy-as:
           registry: << parameters.registry >>
           image: << parameters.image >>
