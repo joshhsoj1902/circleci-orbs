@@ -22,7 +22,7 @@ executors:
   docker:
     description: The docker container to use when running docker-publish builds
     docker:
-      - image: joshhsoj1902/circleci-build-image:1.0.7
+      - image: joshhsoj1902/circleci-build-image:1.0.8
 
 commands:
   configure-gcloud:
@@ -174,6 +174,31 @@ commands:
       - run:
           name: Push Docker Image
           command: docker push << parameters.registry >>/<< parameters.image >>:<< parameters.tag >>
+
+  deploy-as:
+    description: Deploy docker image to a registry. tagging it as something elase first
+    parameters:
+      registry:
+        description: Name of registry to use. Defaults to docker.io.
+        type: string
+        default: docker.io
+      image:
+        description: Name of image to create. Defaults to a combination of $DOCKER_LOGIN/$CIRCLE_PROJECT_REPONAME.
+        type: string
+        default: $DOCKER_LOGIN/$CIRCLE_PROJECT_REPONAME
+      tag:
+        description: tag of image loaded from disk.
+        type: string
+        default: latest
+      tag_as:
+        description: tag of image to push.
+        type: string
+    steps:
+      - run:
+          name: Push Docker Image
+          command: |
+            docker tag << parameters.registry >>/<< parameters.image >>:<< parameters.tag >> << parameters.registry >>/<< parameters.image >>:<< parameters.tag_as >>
+            docker push << parameters.registry >>/<< parameters.image >>:<< parameters.tag_as >>
 
 jobs:
   build:
@@ -443,9 +468,65 @@ jobs:
         type: string
         default: $DOCKER_LOGIN/$CIRCLE_PROJECT_REPONAME
       tag:
-        description: Value for tag to use. Defaults to $CIRCLE_SHA1.
+        description: tag of image loaded from disk.
+        type: string
+        default: latest
+      tag_as1:
+        description: First value to tag and push image as. Defaults to latest.
+        type: string
+        default: latest
+      tag_as2:
+        description: Second value to tag and push image as. Defaults to $CIRCLE_SHA1.
         type: string
         default: $CIRCLE_SHA1
+      tag_as3:
+        description: Optional third value to tag and push image as.
+        type: string
+        default: $TAG_AS3
+      tag_as3_bool:
+        description: Enable Optional third value to tag and push image as.
+        type: boolean
+        default: false
+      tag_as4:
+        description: Optional third value to tag and push image as.
+        type: string
+        default: $TAG_AS4
+      tag_as4_bool:
+        description: Enable Optional forth value to tag and push image as.
+        type: boolean
+        default: false
+      tag_as5:
+        description: Optional fifth value to tag and push image as.
+        type: string
+        default: $TAG_AS5
+      tag_as5_bool:
+        description: Enable Optional fifth value to tag and push image as.
+        type: boolean
+        default: false
+      tag_as6:
+        description: Optional sixth value to tag and push image as.
+        type: string
+        default: $TAG_AS6
+      tag_as6_bool:
+        description: Enable Optional sixth value to tag and push image as.
+        type: boolean
+        default: false
+      tag_as7:
+        description: Optional 7th value to tag and push image as.
+        type: string
+        default: $TAG_AS7
+      tag_as7_bool:
+        description: Enable Optional 7th value to tag and push image as.
+        type: boolean
+        default: false
+      tag_as8:
+        description: Optional 8th value to tag and push image as.
+        type: string
+        default: $TAG_AS8
+      tag_as8_bool:
+        description: Enable Optional 8th value to tag and push image as.
+        type: boolean
+        default: false
       registry:
         description: Name of registry to use. Defaults to docker.io.
         type: string
@@ -455,7 +536,7 @@ jobs:
         type: steps
         default: []
       before_deploy:
-        description: Optional steps to run before deploying the docker image.
+        description: Optional steps to run before deploying the docker image. 
         type: steps
         default: []
     steps:
@@ -471,7 +552,70 @@ jobs:
           name: Run before_deploy lifecycle hook steps.
           condition: << parameters.before_deploy >>
           steps: << parameters.before_deploy >>
-      - deploy:
+      - run: env
+      - run: cat << parameters.workspace >>/env-vars >> $BASH_ENV
+      - run: env
+      - deploy-as:
           registry: << parameters.registry >>
           image: << parameters.image >>
           tag: << parameters.tag >>
+          tag_as: << parameters.tag_as1 >>
+      - deploy-as:
+          registry: << parameters.registry >>
+          image: << parameters.image >>
+          tag: << parameters.tag >>
+          tag_as: << parameters.tag_as2 >>
+      - when:
+          name: Tag 3.
+          condition: << parameters.tag_as3_bool >>
+          steps: 
+            - deploy-as:
+                registry: << parameters.registry >>
+                image: << parameters.image >>
+                tag: << parameters.tag >>
+                tag_as: << parameters.tag_as3 >>
+      - when:
+          name: Tag 4.
+          condition: << parameters.tag_as4_bool >>
+          steps: 
+            - deploy-as:
+                registry: << parameters.registry >>
+                image: << parameters.image >>
+                tag: << parameters.tag >>
+                tag_as: << parameters.tag_as4 >>
+      - when:
+          name: Tag 5.
+          condition: << parameters.tag_as5_bool >>
+          steps: 
+            - deploy-as:
+                registry: << parameters.registry >>
+                image: << parameters.image >>
+                tag: << parameters.tag >>
+                tag_as: << parameters.tag_as5 >>
+      - when:
+          name: Tag 6.
+          condition: << parameters.tag_as6_bool >>
+          steps: 
+            - deploy-as:
+                registry: << parameters.registry >>
+                image: << parameters.image >>
+                tag: << parameters.tag >>
+                tag_as: << parameters.tag_as6 >>
+      - when:
+          name: Tag 7.
+          condition: << parameters.tag_as7_bool >>
+          steps: 
+            - deploy-as:
+                registry: << parameters.registry >>
+                image: << parameters.image >>
+                tag: << parameters.tag >>
+                tag_as: << parameters.tag_as7 >>
+      - when:
+          name: Tag 8.
+          condition: << parameters.tag_as8_bool >>
+          steps: 
+            - deploy-as:
+                registry: << parameters.registry >>
+                image: << parameters.image >>
+                tag: << parameters.tag >>
+                tag_as: << parameters.tag_as8 >>
