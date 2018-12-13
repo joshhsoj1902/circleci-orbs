@@ -486,7 +486,7 @@ jobs:
       tag_as4:
         description: 4th value to tag and push image as.
         type: string
-        default: $CIRCLE_BRANCH-CIRCLE_BUILD_NUM
+        default: $CIRCLE_BRANCH-$CIRCLE_BUILD_NUM
       tag_as5:
         description: Optional fifth value to tag and push image as.
         type: string
