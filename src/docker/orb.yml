@@ -544,9 +544,10 @@ jobs:
           name: Run before_deploy lifecycle hook steps.
           condition: << parameters.before_deploy >>
           steps: << parameters.before_deploy >>
-      - run: env
-      - run: cat << parameters.workspace >>/env-vars >> $BASH_ENV
-      - run: env
+      - run: |
+           if [ -f << parameters.workspace >>/env-vars >> ]; then
+             cat << parameters.workspace >>/env-vars >> $BASH_ENV
+           fi
       - deploy-as:
           registry: << parameters.registry >>
           image: << parameters.image >>
