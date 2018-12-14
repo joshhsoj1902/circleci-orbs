@@ -155,26 +155,6 @@ commands:
             retry -v -s << parameters.sleep >> -t << parameters.tries >> -- 'containerId=$(docker ps -f name=_<< parameters.container >>_ --format "{{.ID}}"); if [ $(docker inspect --format "{{ .State.Health.Status }}" $containerId) == "healthy" ]; then echo "Service Healthy"; true; else echo "Service not healthy $containerId"; false; fi'
             docker ps
 
-  deploy:
-    description: Deploy docker image to a registry.
-    parameters:
-      registry:
-        description: Name of registry to use. Defaults to docker.io.
-        type: string
-        default: docker.io
-      image:
-        description: Name of image to create. Defaults to a combination of $DOCKER_LOGIN/$CIRCLE_PROJECT_REPONAME.
-        type: string
-        default: $DOCKER_LOGIN/$CIRCLE_PROJECT_REPONAME
-      tag:
-        description: tag of image to push.
-        type: string
-        default: latest
-    steps:
-      - run:
-          name: Push Docker Image
-          command: docker push << parameters.registry >>/<< parameters.image >>:<< parameters.tag >>
-
   deploy-as:
     description: Deploy docker image to a registry. tagging it as something elase first
     parameters:
@@ -193,12 +173,21 @@ commands:
       tag_as:
         description: tag of image to push.
         type: string
+      tag_suffix:
+        description: text to add to end of tag
+        type: string
+        default: 
     steps:
       - run:
           name: Push Docker Image
           command: |
-            docker tag << parameters.registry >>/<< parameters.image >>:<< parameters.tag >> << parameters.registry >>/<< parameters.image >>:<< parameters.tag_as >>
-            docker push << parameters.registry >>/<< parameters.image >>:<< parameters.tag_as >>
+            if [[ "<< parameters.tag_suffix >>" == "" ]]; then
+              docker tag << parameters.registry >>/<< parameters.image >>:<< parameters.tag >> << parameters.registry >>/<< parameters.image >>:<< parameters.tag_as >>
+              docker push << parameters.registry >>/<< parameters.image >>:<< parameters.tag_as >>
+            else
+              docker tag << parameters.registry >>/<< parameters.image >>:<< parameters.tag >> << parameters.registry >>/<< parameters.image >>:<< parameters.tag_as >>-<< parameters.tag_suffix >>
+              docker push << parameters.registry >>/<< parameters.image >>:<< parameters.tag_as >>-<< parameters.tag_suffix >>
+            fi
 
 jobs:
   build:
@@ -403,6 +392,10 @@ jobs:
         description: Optional steps to run before loading the docker image.
         type: steps
         default: []
+      after_load:
+        description: Optional steps to run after loading the docker image.
+        type: steps
+        default: []
       before_test:
         description: Optional steps to run before running the tests.
         type: steps
@@ -420,6 +413,10 @@ jobs:
           condition: << parameters.before_load >>
           steps: << parameters.before_load >>
       - run: docker load -i << parameters.workspace >>/<< parameters.imageFile >>
+      - when:
+          name: Run after_load lifecycle hook steps.
+          condition: << parameters.after_load >>
+          steps: << parameters.after_load >>
       - run: 
           background: true
           command: | 
@@ -471,6 +468,10 @@ jobs:
         description: tag of image loaded from disk.
         type: string
         default: latest
+      tag_suffix:
+        description: suffix to add onto the end of EVERY tag (including any custom tags you add)
+        type: string
+        default: 
       tag_as1:
         description: First value to tag and push image as. Defaults to latest.
         type: string
@@ -552,21 +553,25 @@ jobs:
           registry: << parameters.registry >>
           image: << parameters.image >>
           tag: << parameters.tag >>
+          tag_suffix: << parameters.tag_suffix >>
           tag_as: << parameters.tag_as1 >>
       - deploy-as:
           registry: << parameters.registry >>
           image: << parameters.image >>
           tag: << parameters.tag >>
+          tag_suffix: << parameters.tag_suffix >>
           tag_as: << parameters.tag_as2 >>
       - deploy-as:
           registry: << parameters.registry >>
           image: << parameters.image >>
           tag: << parameters.tag >>
+          tag_suffix: << parameters.tag_suffix >>        
           tag_as: << parameters.tag_as3 >>
       - deploy-as:
           registry: << parameters.registry >>
           image: << parameters.image >>
           tag: << parameters.tag >>
+          tag_suffix: << parameters.tag_suffix >>
           tag_as: << parameters.tag_as4 >>
       - when:
           name: Tag 5.
@@ -576,6 +581,7 @@ jobs:
                 registry: << parameters.registry >>
                 image: << parameters.image >>
                 tag: << parameters.tag >>
+                tag_suffix: << parameters.tag_suffix >>              
                 tag_as: << parameters.tag_as5 >>
       - when:
           name: Tag 6.
@@ -585,6 +591,7 @@ jobs:
                 registry: << parameters.registry >>
                 image: << parameters.image >>
                 tag: << parameters.tag >>
+                tag_suffix: << parameters.tag_suffix >>
                 tag_as: << parameters.tag_as6 >>
       - when:
           name: Tag 7.
@@ -594,6 +601,7 @@ jobs:
                 registry: << parameters.registry >>
                 image: << parameters.image >>
                 tag: << parameters.tag >>
+                tag_suffix: << parameters.tag_suffix >>
                 tag_as: << parameters.tag_as7 >>
       - when:
           name: Tag 8.
@@ -603,4 +611,5 @@ jobs:
                 registry: << parameters.registry >>
                 image: << parameters.image >>
                 tag: << parameters.tag >>
+                tag_suffix: << parameters.tag_suffix >>
                 tag_as: << parameters.tag_as8 >>
