@@ -92,7 +92,7 @@ commands:
     steps:
       - run:
           name: Build Docker Image
-          command: docker build -f << parameters.dockerfile >> -t << parameters.registry >>/<< parameters.image >>:<< parameters.tag >> .
+          command: docker build --compress -f << parameters.dockerfile >> -t << parameters.registry >>/<< parameters.image >>:<< parameters.tag >> .
       - run: mkdir -p << parameters.workspace >>
       - run: docker save << parameters.registry >>/<< parameters.image >> -o << parameters.workspace >>/<< parameters.imageFile >>
       - persist_to_workspace:
