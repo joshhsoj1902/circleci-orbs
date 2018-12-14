@@ -1,7 +1,7 @@
 version: 2.1
 
 description: |
-  Build and publish Docker images to container registries
+  Build, test and publish Docker images. This uses workspaces to save and load the image from making it very easy to plug in custom test jobs using the image built here. 
 examples:
   custom_name_and_tag:
     description: I'll add examples at some point. Till then, look at https://github.com/joshhsoj1902/linuxgsm-docker/blob/master/.circleci/config.yml or https://github.com/joshhsoj1902/docker-gogpagent/blob/master/.circleci/config.yml..
@@ -9,7 +9,7 @@ examples:
       version: 2.1
 
       orbs:
-        docker-publish: joshhsoj1902/docker@0.1.0
+        docker-publish: joshhsoj1902/docker@0.13.0
 
       workflows:
         build_and_publish_docker_image:
