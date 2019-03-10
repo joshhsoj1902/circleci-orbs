@@ -320,6 +320,14 @@ jobs:
         description: Should start command be ran in background?
         type: boolean
         default: true
+      tries:
+        description: How many times to retry.
+        type: integer
+        default: 60
+      sleep:
+        description: How long to sleep between retrys.
+        type: integer
+        default: 5
       before_load:
         description: Optional steps to run before loading the docker image.
         type: steps
@@ -353,15 +361,97 @@ jobs:
       - test-container-healthiness:
           composeFilePath: << parameters.workspace >>/<< parameters.composeFile >>
           container: << parameters.service >>
-          sleep: 5
-          tries: 60
+          sleep: << parameters.sleep >>
+          tries: << parameters.tries >>
       - when:
           name: Run after_test lifecycle hook steps.
           condition: << parameters.after_test >>
           steps: << parameters.after_test >>
 
+  compose-retry:
+    description: Run a command inside a chosen docker compose started container until it returns truthy or time runs out.
+    executor: docker
+    parameters:
+      workspace:
+        description: Name of workspace to save to.
+        type: string
+        default: /tmp/workspace
+      imageFile:
+        description: Name of file to save image as.
+        type: string
+        default: images.tar
+      composeFile:
+        description: Name of compose file to use.
+        type: string
+        default: ./docker-compose.yml
+      service:
+        description: Name of service to run/exec.
+        type: string
+        default: ./docker-compose.yml
+      tries:
+        description: How many times to retry.
+        type: integer
+        default: 60
+      sleep:
+        description: How long to sleep between retrys.
+        type: integer
+        default: 5
+      before_load:
+        description: Optional steps to run before loading the docker image.
+        type: steps
+        default: []
+      after_load:
+        description: Optional steps to run after loading the docker image.
+        type: steps
+        default: []
+      before_test:
+        description: Optional steps to run before running the tests.
+        type: steps
+        default: []
+      after_test:
+        description: Optional steps to run after running the tests.
+        type: steps
+        default: []
+    steps:
+      - setup_remote_docker
+      - attach_workspace:
+          at: << parameters.workspace >>
+      - when:
+          name: Run before_load lifecycle hook steps.
+          condition: << parameters.before_load >>
+          steps: << parameters.before_load >>
+      - run: docker load -i << parameters.workspace >>/<< parameters.imageFile >>
+      - when:
+          name: Run after_load lifecycle hook steps.
+          condition: << parameters.after_load >>
+          steps: << parameters.after_load >>
+      - run: 
+          background: true
+          command: | 
+            docker image ls
+            docker-compose -f << parameters.workspace >>/<< parameters.composeFile >> up
+      - when:
+          name: Run before_test lifecycle hook steps.
+          condition: << parameters.before_test >>
+          steps: << parameters.before_test >>
+      - compose-exec-retry:
+          composeFilePath: << parameters.workspace >>/<< parameters.composeFile >>
+          service: << parameters.service >>
+          command: ./docker-ready.sh
+          sleep: << parameters.sleep >>
+          tries: << parameters.tries >>
+      - when:
+          name: Run after_test lifecycle hook steps.
+          condition: << parameters.after_test >>
+          steps: << parameters.after_test >>
+      - run:
+          name: Save logs -f << parameters.workspace >>/<< parameters.composeFile >>
+          when: always
+          command: docker-compose -f << parameters.workspace >>/<< parameters.composeFile >> logs << parameters.service >>
+
+
   compose-test-health:
-    description: Check, Build, and Deploy a Docker Image.
+    description: Deprecated. Use compose-retry instead
     executor: docker
     parameters:
       image:
