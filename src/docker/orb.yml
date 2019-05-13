@@ -471,7 +471,7 @@ jobs:
       tag_suffix:
         description: suffix to add onto the end of EVERY tag (including any custom tags you add)
         type: string
-        default: 
+        default: ""
       tag_as1:
         description: First value to tag and push image as. Defaults to latest.
         type: string
