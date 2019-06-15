@@ -22,7 +22,7 @@ executors:
   docker:
     description: The docker container to use when running docker-publish builds
     docker:
-      - image: joshhsoj1902/circleci-build-image:1.0.8
+      - image: joshhsoj1902/circleci-build-image:2.0.0
 
 commands:
   configure-gcloud:
@@ -228,7 +228,8 @@ jobs:
           name: Run after_checkout lifecycle hook steps.
           condition: << parameters.after_checkout >>
           steps: << parameters.after_checkout >>
-      - setup_remote_docker
+      - setup_remote_docker:
+          version: 18.09.3
       - when:
           name: Run before_build lifecycle hook steps.
           condition: << parameters.before_build >>
@@ -272,7 +273,8 @@ jobs:
         type: steps
         default: []
     steps:
-      - setup_remote_docker
+      - setup_remote_docker:
+          version: 18.09.3
       - attach_workspace:
           at: << parameters.workspace >>
       - when:
@@ -333,7 +335,8 @@ jobs:
         type: steps
         default: []
     steps:
-      - setup_remote_docker
+      - setup_remote_docker:
+          version: 18.09.3
       - attach_workspace:
           at: << parameters.workspace >>
       - when:
@@ -405,7 +408,8 @@ jobs:
         type: steps
         default: []
     steps:
-      - setup_remote_docker
+      - setup_remote_docker:
+          version: 18.09.3
       - attach_workspace:
           at: << parameters.workspace >>
       - when:
@@ -533,7 +537,8 @@ jobs:
         type: steps
         default: []
     steps:
-      - setup_remote_docker
+      - setup_remote_docker:
+          version: 18.09.3
       - attach_workspace:
           at: << parameters.workspace >>
       - when:
