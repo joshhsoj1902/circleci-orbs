@@ -1,4 +1,4 @@
-VERSION ?= second
+VERSION ?= test
 
 docker-validate:
 	circleci orb validate src/docker/orb.yml
